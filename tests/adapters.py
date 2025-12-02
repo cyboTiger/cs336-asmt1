@@ -9,6 +9,9 @@ import torch
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
+import regex as re
+import multiprocessing as mp
+from common import find_chunk_boundaries
 
 def run_linear(
     d_in: int,
@@ -589,4 +592,31 @@ def run_train_bpe(
                 representing that <token1> was merged with <token2>.
                 Merges are ordered by order of creation.
     """
+
+    sp_pat = "|".join([re.escape(sptoken) for sptoken in special_tokens])
+    pat = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+
+    merges: list[tuple[bytes, bytes]] = []
+    vocab: dict[int, bytes] = {}
+
+    for sptoken in special_tokens:
+        vocab[len(vocab)] = sptoken.encode('utf-8')
+    for i in range(33, 324):
+        if chr(i).isprintable():
+            vocab[len(vocab)] = chr(i).encode('utf-8')
+
+    desired_num_chunks = 5
+    chunk_boundaries = find_chunk_boundaries(
+        open(input_path, 'r').read(), 
+        desired_num_chunks=desired_num_chunks, 
+        split_special_tokens=special_tokens
+    )
+
+    processes = []
+    
+    pretok_list = re.finditer(pat, open(input_path, 'r').read())
+    
+    
+
     raise NotImplementedError
+
